@@ -27,26 +27,27 @@ class ClashRoyaleEnv(gym.Env):
         self.kb = KnowledgeBase()
         
         # 3. Initialize Vision Model (Placeholder)
-        # self.model = YOLO("cr_ai/runs/detect/train/weights/best.pt") # Example path
+        # self.model = YOLO("cr_ai/runs/detect/train/weights/best.pt") 
         self.model = None
 
+        # Capture one frame to determine resolution
+        self.screen_width = 1080
+        self.screen_height = 1920
+        init_screen = self.controller.get_screenshot()
+        if init_screen is not None:
+            # cv2 image is (Height, Width, Channels)
+            self.screen_height, self.screen_width = init_screen.shape[:2]
+            print(f"[INFO] Detect resolution: {self.screen_width}x{self.screen_height}")
+
         # Define Action Space:
-        # Action: [Card_Index (0-3), X_Position (0-100), Y_Position (0-100)]
-        # We discretize the board into a grid (e.g., 10x10 or finer)
-        # For simplicity v1: 4 cards * 2 lanes = 8 discrete actions? 
-        # Better: MultiDiscrete([4, 18, 32]) -> Card 0-3, Grid X (18 tiles), Grid Y (32 tiles)
+        # MultiDiscrete([4, 100, 100]) -> Card 0-3, Grid X (0-100%), Grid Y (0-100%)
         self.action_space = spaces.MultiDiscrete([4, 100, 100])
 
         # Define Observation Space:
-        # Image (Screen) + Scalar Features (Elixir, Time, etc.)
-        # For v1, we just return the image.
-        self.observation_space = spaces.Box(low=0, high=255, shape=(540, 960, 3), dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(self.screen_height, self.screen_width, 3), dtype=np.uint8)
 
     def reset(self, seed=None, options=None):       
         super().reset(seed=seed)
-        # Logic to restart the match (e.g., click "Battle" button)
-        # For now, we assume the user is manually starting/restarting or in training camp loop
-        
         observation = self._get_observation()
         info = {}
         return observation, info
@@ -58,24 +59,27 @@ class ClashRoyaleEnv(gym.Env):
         card_idx, x_pct, y_pct = action
         
         # 1. Select Card
-        # Map card_idx 0-3 to screen coordinates (Bottom UI)
         self._tap_card(card_idx)
-        time.sleep(0.1)
+        time.sleep(0.2)
         
         # 2. Place Card
         # Map percent to pixel coordinates
-        screen_x = int((x_pct / 100.0) * 960)
-        screen_y = int((y_pct / 100.0) * 540)
+        screen_x = int((x_pct / 100.0) * self.screen_width)
+        screen_y = int((y_pct / 100.0) * self.screen_height)
+        
+        # Safety clip
+        screen_x = max(0, min(screen_x, self.screen_width - 1))
+        screen_y = max(0, min(screen_y, self.screen_height - 1))
+        
         self.controller.tap(screen_x, screen_y)
         
-        # 3. Wait for game update
-        time.sleep(2.0) # Game allows one move per ~2s? Setup delay
+        # 3. Wait for game update (placement delay)
+        time.sleep(1.0) 
         
         # 4. Get new state
         observation = self._get_observation()
         
         # 5. Calculate Reward (Placeholder)
-        # Need to detect tower health delta
         reward = 0 
         terminated = False
         truncated = False
@@ -83,25 +87,24 @@ class ClashRoyaleEnv(gym.Env):
         
         return observation, reward, terminated, truncated, info
 
-    def render(self):
-        pass
-
-    def close(self):
-        pass
-
     def _get_observation(self):
         img = self.controller.get_screenshot()
         if img is None:
-            # Return black screen if failed
-            return np.zeros((540, 960, 3), dtype=np.uint8)
+            return np.zeros((self.screen_height, self.screen_width, 3), dtype=np.uint8)
         return img
 
     def _tap_card(self, card_idx):
-        # Hardcoded coordinates for 960x540 resolution
-        # Cards are roughly at Y=480, distributed across X
-        card_x_positions = [300, 420, 540, 660] # Approx centers
+        # Calculate dynamic positions based on resolution
+        # Cards are roughly at 90% height
+        card_y = int(self.screen_height * 0.90)
+        
+        # X positions for 4 cards (centered in their slots)
+        # Slots are roughly: 17%, 39%, 61%, 83% width
+        x_ratios = [0.17, 0.39, 0.61, 0.83]
+        
         if 0 <= card_idx < 4:
-            self.controller.tap(card_x_positions[card_idx], 500)
+            card_x = int(self.screen_width * x_ratios[card_idx])
+            self.controller.tap(card_x, card_y)
 
 if __name__ == "__main__":
     # Test the environment
