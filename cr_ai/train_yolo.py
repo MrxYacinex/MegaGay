@@ -1,34 +1,67 @@
 from ultralytics import YOLO
-import os
+import sys
+from pathlib import Path
 
-# Define dataset path
-dataset_path = os.path.abspath("KataCR/logs/generation")
+# Add KataCR to path to get class names
+sys.path.append(str(Path("KataCR").resolve()))
+from katacr.constants.label_list import unit_list
 
-# You need to create a data.yaml for YOLO
-yaml_content = f"""
-path: {dataset_path}
+def train_yolo_on_mac():
+    # 1. Define Paths
+    base_dir = Path("dataset_yolo").resolve()
+    yaml_path = base_dir / "data.yaml"
+    
+    # 2. Create data.yaml content
+    # YOLO needs a definition file telling it where images are and what classes exist
+    # We use the 'unit_list' from KataCR which matches the generator IDs
+    
+    classes_yaml = ""
+    for idx, name in enumerate(unit_list):
+        classes_yaml += f"  {idx}: {name}\n"
+    
+    yaml_content = f"""
+path: {base_dir}
 train: images
 val: images
 
 names:
-  0: kingtower
-  1: queentower
-  # ... (mapping needs to follow the generator's label list)
-  # Note: The generator output format needs to be converted to standard YOLO format (images + labels folders)
-  # The KataCR generator produces images and labels? We need to verify that.
+{classes_yaml}
 """
-
-def train():
-    # Load model
-    model = YOLO("yolov8n.pt")  # load a pretrained model (recommended for training)
-
-    # Train the model
-    # Note: Ensure data.yaml is correctly configured with classes
-    model.train(data="coco128.yaml", epochs=3)  # Use coco128 as placeholder, replace with custom yaml
-    metrics = model.val()  # evaluate model performance on the validation set
-    path = model.export(format="onnx")  # export the model to ONNX format
-    print(f"Model exported to {path}")
+    
+    with open(yaml_path, "w") as f:
+        f.write(yaml_content)
+    print(f"[INFO] Created YOLO config at {yaml_path}")
+    
+    # 3. Initialize Model
+    # 'yolov8n.pt' is the 'nano' version (smallest/fastest). Good for realtime on CPU/MPS.
+    print("[INFO] Loading YOLOv8 Nano model...")
+    model = YOLO("yolov8n.pt") 
+    
+    # 4. Train Model
+    # Device: 'mps' is for Mac M1/M2 Metal Performance Shaders (GPU acceleration)
+    # If mps fails, use 'cpu'
+    device = 'mps' 
+    print(f"[INFO] Starting training device={device}...")
+    
+    try:
+        results = model.train(
+            data=str(yaml_path),
+            epochs=50,       # Start with 50 epochs
+            imgsz=640,       # Image size (generator uses ~640x...)
+            device=device,   
+            batch=16,        
+            plots=True
+        )
+        
+        # 5. Export
+        print("[INFO] Training finished. Exporting best model...")
+        success = model.export(format="onnx")
+        print(f"[SUCCESS] Exported to: {success}")
+        
+    except Exception as e:
+        print(f"[ERROR] Training failed with device='{device}': {e}")
+        print("[INFO] Fallback to CPU training...")
+        model.train(data=str(yaml_path), epochs=5, imgsz=640, device='cpu')
 
 if __name__ == "__main__":
-    print("This is a template. You need to convert KataCR output to YOLO format first.")
-    # train()
+    train_yolo_on_mac()
