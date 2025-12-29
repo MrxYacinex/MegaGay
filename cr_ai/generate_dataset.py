@@ -57,4 +57,5 @@ def generate_dataset(num_images=50):
 
 import random
 if __name__ == "__main__":
-    generate_dataset(20) # Generate 20 samples for verification
+if __name__ == "__main__":
+    generate_dataset(1000) # Generate 1000 samples for better training
