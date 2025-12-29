@@ -5,39 +5,47 @@ import numpy as np
 
 def verify_vision():
     print("[INFO] Initializing Environment...")
-    # This will connect to ADB and load the YOLO model
     env = ClashRoyaleEnv()
     
     if env.model is None:
         print("[ERROR] Model not loaded! Check if best.pt exists.")
         return
 
-    print("[INFO] capturing screenshot...")
-    # Reset gets the first observation
-    obs, _ = env.reset()
+    print("[INFO] Starting LIVE Vision Debugger.")
+    print("[INFO] A window will open showing what the AI sees. Click the window and press 'q' to quit.")
     
-    # Run Inference
-    print("[INFO] Running YOLO inference...")
-    results = env.model(obs)
-    
-    # Results is a list (one per image)
-    for r in results:
-        # Plot results on the image
-        # params: conf=True (show confidence), labels=True (show labels)
-        im_array = r.plot()  
-        
-        # Save validation image
-        output_path = "vision_test_result.jpg"
-        cv2.imwrite(output_path, np.array(im_array))
-        print(f"[SUCCESS] Saved detection result to {output_path}")
-        print(f"[INFO] Detected {len(r.boxes)} objects.")
-        
-        # Print what was found
-        for box in r.boxes:
-            cls_id = int(box.cls[0])
-            conf = float(box.conf[0])
-            name = r.names[cls_id]
-            print(f" - Found: {name} ({conf:.2f})")
+    try:
+        while True:
+            cycle_start = time.time()
+            
+            # 1. Capture
+            obs = env.controller.get_screenshot()
+            if obs is None:
+                continue
+            
+            # 2. Inference
+            results = env.model(obs)
+            
+            # 3. Visualization
+            # plot() returns a numpy array (BGR)
+            annotated_frame = results[0].plot()
+            
+            # Add FPS counter
+            fps = 1.0 / (time.time() - cycle_start + 1e-6)
+            cv2.putText(annotated_frame, f"FPS: {fps:.1f}", (10, 30), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            
+            # 4. Show Window
+            cv2.imshow("Clash Royale AI Vision", annotated_frame)
+            
+            # Exit on 'q'
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+                
+    except KeyboardInterrupt:
+        print("\n[INFO] Stopped by user.")
+    finally:
+        cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     verify_vision()
