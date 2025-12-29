@@ -3,13 +3,22 @@ import sys
 from pathlib import Path
 
 # Add KataCR to path to get class names
-sys.path.append(str(Path("KataCR").resolve()))
+# We need to add the parent of 'katacr' package, which is 'cr_ai/KataCR'
+script_dir = Path(__file__).parent
+sys.path.append(str((script_dir / "KataCR").resolve()))
 from katacr.constants.label_list import unit_list
 
 def train_yolo_on_mac():
     # 1. Define Paths
-    base_dir = Path("dataset_yolo").resolve()
+    script_dir = Path(__file__).parent
+    base_dir = (script_dir / "dataset_yolo").resolve()
     yaml_path = base_dir / "data.yaml"
+    
+    # Ensure directory exists
+    if not base_dir.exists():
+        print(f"[ERROR] Dataset directory not found at: {base_dir}")
+        print("Did you run generate_dataset.py?")
+        return
     
     # 2. Create data.yaml content
     # YOLO needs a definition file telling it where images are and what classes exist

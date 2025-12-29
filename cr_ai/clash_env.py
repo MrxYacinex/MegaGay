@@ -7,7 +7,7 @@ from pathlib import Path
 
 from game_interface import GameController
 from knowledge_base import KnowledgeBase
-# from ultralytics import YOLO  # Uncomment when model is ready
+from ultralytics import YOLO  # Uncomment when model is ready
 
 class ClashRoyaleEnv(gym.Env):
     """
@@ -26,9 +26,15 @@ class ClashRoyaleEnv(gym.Env):
         # 2. Initialize Knowledge Base
         self.kb = KnowledgeBase()
         
-        # 3. Initialize Vision Model (Placeholder)
-        # self.model = YOLO("cr_ai/runs/detect/train/weights/best.pt") 
-        self.model = None
+        # 3. Initialize Vision Model
+        # Load the locally trained model
+        model_path = Path(__file__).parent.parent / "runs/detect/train/weights/best.pt"
+        if model_path.exists():
+            print(f"[INFO] Loading YOLO model from {model_path}")
+            self.model = YOLO(model_path)
+        else:
+            print(f"[WARNING] Model not found at {model_path}. Using lightweight fallback or None.")
+            self.model = None
 
         # Capture one frame to determine resolution
         self.screen_width = 1080
