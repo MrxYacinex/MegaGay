@@ -1,7 +1,7 @@
 
-path: /Users/yacine/Desktop/MegaGay/MegaGay/cr_ai/dataset_yolo
-train: images
-val: images
+path: /Users/marcprante/Projects/megagay/MegaGay/cr_ai/dataset_yolo
+train: images/train
+val: images/val
 
 names:
   0: king-tower

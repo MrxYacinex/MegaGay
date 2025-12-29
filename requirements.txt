@@ -1,0 +1,13 @@
+numpy
+opencv-python
+pure-python-adb
+ultralytics
+gymnasium
+pandas
+openpyxl
+jax
+jaxlib
+flax
+optax
+paddlepaddle
+paddleocr

@@ -27,13 +27,34 @@ class ClashRoyaleEnv(gym.Env):
         self.kb = KnowledgeBase()
         
         # 3. Initialize Vision Model
+        # 3. Initialize Vision Model
         # Load the locally trained model
-        model_path = Path(__file__).parent.parent / "runs/detect/train/weights/best.pt"
-        if model_path.exists():
+        runs_dir = Path(__file__).parent.parent / "runs/detect"
+        model_path = None
+        
+        # Find latest training run
+        if runs_dir.exists():
+            # Get all train* directories
+            train_dirs = [d for d in runs_dir.iterdir() if d.is_dir() and d.name.startswith('train')]
+            # Sort by creation/modification time (or name which usually works for train, train2, etc)
+            # Sorting by name works for standard ultralytics naming (train, train2, ... train10) if we handle the numbers correct
+            # or just sort by modification time
+            train_dirs.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+            
+            for d in train_dirs:
+                candidate = d / "weights/best.pt"
+                if candidate.exists():
+                    model_path = candidate
+                    break
+        
+        if model_path is None:
+             model_path = runs_dir / "train/weights/best.pt"
+
+        if model_path and model_path.exists():
             print(f"[INFO] Loading YOLO model from {model_path}")
             self.model = YOLO(model_path)
         else:
-            print(f"[WARNING] Model not found at {model_path}. Using lightweight fallback or None.")
+            print(f"[WARNING] Model not found at {model_path or 'runs/detect/...'}. Using lightweight fallback or None.")
             self.model = None
 
         # Capture one frame to determine resolution

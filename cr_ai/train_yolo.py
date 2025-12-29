@@ -30,8 +30,8 @@ def train_yolo_on_mac():
     
     yaml_content = f"""
 path: {base_dir}
-train: images
-val: images
+train: images/train
+val: images/val
 
 names:
 {classes_yaml}
@@ -55,7 +55,7 @@ names:
     try:
         results = model.train(
             data=str(yaml_path),
-            epochs=50,       # Start with 50 epochs
+            epochs=10,       # Start with 10 epochs
             imgsz=640,       # Image size (generator uses ~640x...)
             device=device,   
             batch=16,        
